@@ -1,26 +1,63 @@
-fn main() {
-    println!("Hello, world!");
+#[macro_use] extern crate nickel;
+extern crate rustc_serialize;
+
+mod config;
+
+use nickel::{
+    Nickel, MiddlewareResult, Request, Response, MediaType,
+    JsonBody
+};
+
+use config::loader::ConfigLoader;
+use config::file_loader::FileLoader;
+
+fn logger<'a, D>(request: &mut Request<D>, response: Response<'a, D>) -> MiddlewareResult<'a, D> {
+    println!("logging resquest: {:?}", request.origin.uri);
+    response.next_middleware()
 }
 
-#[cfg(test)]
-mod test {
-    // A helper function `distance_test` will need.
-    fn distance(a: (f32, f32), b: (f32, f32)) -> f32 {
-        (
-            (b.0 - a.0).powi(2) +
-            (b.1 - a.1).powi(2)
-        ).sqrt()
-    }
+#[derive(RustcDecodable, RustcEncodable)]
+struct Person {
+    firstname: String,
+    lastname: String,
+}
 
-    #[test]
-    fn distance_test() {
-        assert!(distance((0f32, 0f32), (1f32, 1f32)) == (2f32).sqrt());
-    }
+fn main() {
 
-    #[test]
-    #[should_panic]
-    fn failing_test() {
-        assert!(1i32 == 2i32);
+    let config_file_loader = FileLoader{file_path: "./conf/conf.toml"};
+    let config = config_file_loader.load();
+    match config {
+        Ok(c) => {
+            let server_details = format!("{host}:{port}",
+                                         host=c.server.host,
+                                         port=c.server.port);
+
+            let mut server = Nickel::new();
+
+            server.utilize(logger);
+
+            server.utilize(router! {
+                get "/usr/:userid" => |request| {
+                    format!("This is user: {}", request.param("userid").unwrap())
+                }
+
+                get "/content-type" => |_, mut response| {
+                    response.set(MediaType::Json);
+                    "{'foo': 'bar'}"
+                }
+
+                post "/a/post/request" => |request| {
+                    let person = request.json_as::<Person>().unwrap();
+                    format!("Hello {} {}", person.firstname, person.lastname)
+                }
+            });
+
+            println!("{:?}", server_details);
+            server.listen(&server_details[..]);
+        },
+        Err(e) => {
+            panic!("Error parsing {:?}", e);
+        }
     }
 }
 

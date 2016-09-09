@@ -4,3 +4,6 @@ version = "0.1.0"
 authors = ["Gregoire Lejay"]
 
 [dependencies]
+nickel = "*"
+rustc-serialize = "*"
+toml = "*"

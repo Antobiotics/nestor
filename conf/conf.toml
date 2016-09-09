@@ -1,0 +1,9 @@
+[server]
+host = "localhost"
+name = "nestor"
+port = 6768
+
+[redis]
+host = "rs1deep.local"
+port = 6379
+password = "pass"
